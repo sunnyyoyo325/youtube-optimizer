@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YouTube Video Optimizer — Export Without Quality Loss</title>
+  <style>
+    :root {
+      --bg: #0f0f13;
+      --card: #18181f;
+      --border: #2b2b36;
+      --text: #f3f4f6;
+      --muted: #9ca3af;
+      --accent: #ff0033;
+      --accent-hover: #d9002b;
+      --green: #10b981;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+      display: flex;
+      justify-content: center;
+    }
+    .container {
+      width: 100%;
+      max-width: 780px;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(255, 0, 51, 0.15);
+      color: #ff4d6d;
+      border: 1px solid rgba(255, 0, 51, 0.35);
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+    }
+    h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+    header p { color: var(--muted); font-size: 0.95rem; line-height: 1.5; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .dropzone {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 2.5rem 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--accent);
+      background: rgba(255, 0, 51, 0.05);
+    }
+    .dropzone input { display: none; }
+    .dropzone strong { display: block; font-size: 1.05rem; margin-bottom: 0.35rem; }
+    .dropzone span { color: var(--muted); font-size: 0.85rem; }
+
+    .file-info {
+      display: none;
+      margin-top: 1rem;
+      padding: 0.85rem 1rem;
+      background: #111116;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .file-info.active { display: flex; }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 0.45rem;
+      margin-top: 1rem;
+    }
+    label:first-child { margin-top: 0; }
+
+    select {
+      width: 100%;
+      padding: 0.75rem 0.9rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #111116;
+      color: var(--text);
+      font-size: 0.95rem;
+      outline: none;
+    }
+    select:focus { border-color: var(--accent); }
+
+    .hint {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-top: 0.4rem;
+      line-height: 1.4;
+    }
+
+    .btn {
+      width: 100%;
+      margin-top: 1.25rem;
+      padding: 0.9rem 1.25rem;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, opacity 0.2s;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-download {
+      display: none;
+      background: var(--green);
+      color: #052e16;
+      text-align: center;
+      text-decoration: none;
+    }
+    .btn-download.active { display: block; }
+
+    .progress-wrap {
+      display: none;
+      margin-top: 1.25rem;
+    }
+    .progress-wrap.active { display: block; }
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      margin-bottom: 0.4rem;
+      color: var(--muted);
+    }
+    .progress-bar {
+      width: 100%;
+      height: 10px;
+      background: #111116;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      transition: width 0.2s;
+    }
+
+    .log-box {
+      margin-top: 0.85rem;
+      background: #09090c;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.65rem;
+      font-family: monospace;
+      font-size: 0.75rem;
+      color: #a1a1aa;
+      height: 95px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+
+    video {
+      width: 100%;
+      max-height: 320px;
+      border-radius: 10px;
+      margin-top: 1rem;
+      background: #000;
+      display: none;
+    }
+    video.active { display: block; }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.8rem;
+      margin-top: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="badge">100% Browser-Based • Private & Free</div>
+      <h1>YouTube Video Optimizer</h1>
+      <p>Convert and export videos using YouTube's highest-quality upload specs (MP4, H.264 High, FastStart, 48kHz AAC) or upscale to trigger YouTube's sharper VP9 codec.</p>
+    </header>
+
+    <div class="card">
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="fileInput" accept="video/*" />
+        <strong>Click to upload or drag &amp; drop a video</strong>
+        <span>Supports MP4, MOV, MKV, WEBM, AVI (Best for files under 500 MB)</span>
+      </div>
+
+      <div class="file-info" id="fileInfo">
+        <span id="fileName">No file selected</span>
+        <span id="fileSize" style="color: var(--muted);"></span>
+      </div>
+
+      <label for="preset">Optimization Preset</label>
+      <select id="preset">
+        <option value="master">YouTube Master Quality (Keep Resolution • H.264 CRF 16 • FastStart)</option>
+        <option value="2k">2K 1440p Upscale (Triggers YouTube's sharper VP9 Codec)</option>
+        <option value="4k">4K 2160p Upscale (Maximum YouTube Bitrate &amp; Clarity)</option>
+        <option value="shorts">YouTube Shorts (1080×1920 Vertical Fit)</option>
+        <option value="remux">Lossless Remux to MP4 (Zero Re-encoding • Instant for H.264/OBS files)</option>
+      </select>
+      <p class="hint" id="presetHint">
+        Uses YouTube's recommended MP4 container, H.264 High Profile, yuv420p color, and moves metadata to the front (+faststart) for clean server processing.
+      </p>
+
+      <label for="speed">Encoding Speed vs File Size</label>
+      <select id="speed">
+        <option value="veryfast">Very Fast (Recommended for Browser Speed)</option>
+        <option value="fast">Balanced (Better Compression)</option>
+      </select>
+
+      <button class="btn btn-primary" id="optimizeBtn" disabled>Optimize Video for YouTube</button>
+
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-header">
+          <span id="statusText">Loading FFmpeg engine (~31 MB first time)...</span>
+          <span id="percentText">0%</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="log-box" id="logBox">Waiting to start...</div>
+      </div>
+
+      <video id="previewVideo" controls></video>
+      <a id="downloadBtn" class="btn btn-download">Download YouTube-Ready Video</a>
+    </div>
+
+    <footer>
+      Processed locally on your device using FFmpeg.wasm. Your video never leaves your computer.
+    </footer>
+  </div>
+
+  <!-- Load FFmpeg.wasm UMD -->
+  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/umd/ffmpeg.js"></script>
+  <script>
+    const { FFmpeg } = window.FFmpegWASM;
+
+    const dropzone = document.getElementById("dropzone");
+    const fileInput = document.getElementById("fileInput");
+    const fileInfo = document.getElementById("fileInfo");
+    const fileNameEl = document.getElementById("fileName");
+    const fileSizeEl = document.getElementById("fileSize");
+    const presetEl = document.getElementById("preset");
+    const presetHint = document.getElementById("presetHint");
+    const speedEl = document.getElementById("speed");
+    const optimizeBtn = document.getElementById("optimizeBtn");
+    const progressWrap = document.getElementById("progressWrap");
+    const statusText = document.getElementById("statusText");
+    const percentText = document.getElementById("percentText");
+    const progressFill = document.getElementById("progressFill");
+    const logBox = document.getElementById("logBox");
+    const previewVideo = document.getElementById("previewVideo");
+    const downloadBtn = document.getElementById("downloadBtn");
+
+    let selectedFile = null;
+    let ffmpeg = null;
+    let outputBlobUrl = null;
+
+    const hints = {
+      master: "Uses YouTube's recommended MP4 container, H.264 High Profile, yuv420p color, 384kbps AAC audio, and +faststart.",
+      "2k": "Upscales video cleanly to 1440p using Lanczos sharpening. Forces YouTube to use its high-quality VP9 codec instead of blurry AVC1.",
+      "4k": "Upscales video to 2160p (4K) for YouTube's highest bitrate tier. Note: Takes longer to process in the browser.",
+      shorts: "Formats video cleanly to 1080×1920 vertical aspect ratio for YouTube Shorts without stretching.",
+      remux: "Copies existing video/audio streams untouched into an MP4 with +faststart. 0% quality loss, finishes in seconds (requires H.264/AAC source)."
+    };
+
+    presetEl.addEventListener("change", () => {
+      presetHint.textContent = hints[presetEl.value];
+      speedEl.disabled = presetEl.value === "remux";
+    });
+
+    const formatBytes = (bytes) => {
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+      return (bytes / (1024 * 1024)).toFixed(2) + " MB";
+    };
+
+    const handleFile = (file) => {
+      if (!file || !file.type.startsWith("video/")) {
+        alert("Please select a valid video file.");
+        return;
+      }
+      selectedFile = file;
+      fileNameEl.textContent = file.name;
+      fileSizeEl.textContent = formatBytes(file.size);
+      fileInfo.classList.add("active");
+      optimizeBtn.disabled = false;
+      downloadBtn.classList.remove("active");
+      previewVideo.classList.remove("active");
+    };
+
+    dropzone.addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", (e) => handleFile(e.target.files[0]));
+    dropzone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropzone.classList.add("dragover");
+    });
+    dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dragover"));
+    dropzone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropzone.classList.remove("dragover");
+      handleFile(e.dataTransfer.files[0]);
+    });
+
+    // Helper functions to load CDN files as same-origin Blob URLs
+    const toBlobURL = async (url, mimeType) => {
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`Failed to fetch ${url}`);
+      const buf = await resp.arrayBuffer();
+      return URL.createObjectURL(new Blob([buf], { type: mimeType }));
+    };
+
+    const appendLog = (msg) => {
+      logBox.textContent += msg + "\n";
+      logBox.scrollTop = logBox.scrollHeight;
+    };
+
+    const loadFFmpeg = async () => {
+      if (ffmpeg) return ffmpeg;
+      ffmpeg = new FFmpeg();
+
+      ffmpeg.on("log", ({ message }) => appendLog(message));
+      ffmpeg.on("progress", ({ progress }) => {
+        const pct = Math.min(100, Math.max(0, Math.round(progress * 100)));
+        progressFill.style.width = pct + "%";
+        percentText.textContent = pct + "%";
+      });
+
+      const ffmpegBase = "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/umd";
+      const coreBase = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd";
+
+      await ffmpeg.load({
+        classWorkerURL: await toBlobURL(`${ffmpegBase}/814.ffmpeg.js`, "text/javascript"),
+        coreURL: await toBlobURL(`${coreBase}/ffmpeg-core.js`, "text/javascript"),
+        wasmURL: await toBlobURL(`${coreBase}/ffmpeg-core.wasm`, "application/wasm"),
+      });
+
+      return ffmpeg;
+    };
+
+    optimizeBtn.addEventListener("click", async () => {
+      if (!selectedFile) return;
+
+      optimizeBtn.disabled = true;
+      downloadBtn.classList.remove("active");
+      previewVideo.classList.remove("active");
+      progressWrap.classList.add("active");
+      progressFill.style.width = "0%";
+      percentText.textContent = "0%";
+      logBox.textContent = "";
+
+      try {
+        statusText.textContent = "Loading FFmpeg engine (~31 MB first time)...";
+        const ff = await loadFFmpeg();
+
+        const ext = selectedFile.name.split(".").pop() || "mp4";
+        const inputName = `input.${ext}`;
+        const outputName = "youtube_optimized.mp4";
+
+        statusText.textContent = "Reading video into memory...";
+        const fileData = new Uint8Array(await selectedFile.arrayBuffer());
+        await ff.writeFile(inputName, fileData);
+
+        const preset = presetEl.value;
+        const speed = speedEl.value;
+        let args = [];
+
+        if (preset === "remux") {
+          args = ["-i", inputName, "-c", "copy", "-movflags", "+faststart", outputName];
+        } else {
+          let vf = [];
+          if (preset === "2k") vf.push("scale=-2:1440:flags=lanczos");
+          if (preset === "4k") vf.push("scale=-2:2160:flags=lanczos");
+          if (preset === "shorts") {
+            vf.push("scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2");
+          }
+
+          args = [
+            "-i", inputName,
+            ...(vf.length ? ["-vf", vf.join(",")] : []),
+            "-c:v", "libx264",
+            "-profile:v", "high",
+            "-crf", "16",
+            "-preset", speed,
+            "-pix_fmt", "yuv420p",
+            "-c:a", "aac",
+            "-b:a", "384k",
+            "-ar", "48000",
+            "-movflags", "+faststart",
+            outputName
+          ];
+        }
+
+        statusText.textContent = "Optimizing video (keep this tab open)...";
+        const exitCode = await ff.exec(args);
+        if (exitCode !== 0) {
+          throw new Error("Encoding failed. If using Lossless Remux, try 'YouTube Master Quality' instead.");
+        }
+
+        statusText.textContent = "Preparing download...";
+        const data = await ff.readFile(outputName);
+
+        if (outputBlobUrl) URL.revokeObjectURL(outputBlobUrl);
+        const blob = new Blob([data.buffer], { type: "video/mp4" });
+        outputBlobUrl = URL.createObjectURL(blob);
+
+        previewVideo.src = outputBlobUrl;
+        previewVideo.classList.add("active");
+
+        const baseName = selectedFile.name.replace(/\.[^/.]+$/, "");
+        downloadBtn.href = outputBlobUrl;
+        downloadBtn.download = `${baseName}_YouTube_Optimized.mp4`;
+        downloadBtn.textContent = `Download Optimized MP4 (${formatBytes(blob.size)})`;
+        downloadBtn.classList.add("active");
+
+        statusText.textContent = "Done! Ready to upload to YouTube.";
+        progressFill.style.width = "100%";
+        percentText.textContent = "100%";
+
+        // Cleanup virtual filesystem
+        await ff.deleteFile(inputName);
+        await ff.deleteFile(outputName);
+      } catch (err) {
+        statusText.textContent = "Error: " + err.message;
+        appendLog("ERROR: " + err.message);
+      } finally {
+        optimizeBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
