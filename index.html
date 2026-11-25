@@ -25,14 +25,8 @@
       display: flex;
       justify-content: center;
     }
-    .container {
-      width: 100%;
-      max-width: 780px;
-    }
-    header {
-      text-align: center;
-      margin-bottom: 2rem;
-    }
+    .container { width: 100%; max-width: 780px; }
+    header { text-align: center; margin-bottom: 1.75rem; }
     .badge {
       display: inline-block;
       background: rgba(255, 0, 51, 0.15);
@@ -47,6 +41,19 @@
     h1 { font-size: 2rem; margin-bottom: 0.5rem; }
     header p { color: var(--muted); font-size: 0.95rem; line-height: 1.5; }
 
+    .warning-banner {
+      display: none;
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.5);
+      color: #fcd34d;
+      padding: 1rem;
+      border-radius: 12px;
+      margin-bottom: 1.25rem;
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+    .warning-banner.active { display: block; }
+
     .card {
       background: var(--card);
       border: 1px solid var(--border);
@@ -54,7 +61,6 @@
       padding: 1.5rem;
       margin-bottom: 1.25rem;
     }
-
     .dropzone {
       border: 2px dashed var(--border);
       border-radius: 12px;
@@ -93,8 +99,6 @@
       margin-bottom: 0.45rem;
       margin-top: 1rem;
     }
-    label:first-child { margin-top: 0; }
-
     select {
       width: 100%;
       padding: 0.75rem 0.9rem;
@@ -106,14 +110,12 @@
       outline: none;
     }
     select:focus { border-color: var(--accent); }
-
     .hint {
       font-size: 0.82rem;
       color: var(--muted);
       margin-top: 0.4rem;
       line-height: 1.4;
     }
-
     .btn {
       width: 100%;
       margin-top: 1.25rem;
@@ -137,10 +139,7 @@
     }
     .btn-download.active { display: block; }
 
-    .progress-wrap {
-      display: none;
-      margin-top: 1.25rem;
-    }
+    .progress-wrap { display: none; margin-top: 1.25rem; }
     .progress-wrap.active { display: block; }
     .progress-header {
       display: flex;
@@ -162,7 +161,6 @@
       background: var(--accent);
       transition: width 0.2s;
     }
-
     .log-box {
       margin-top: 0.85rem;
       background: #09090c;
@@ -172,11 +170,10 @@
       font-family: monospace;
       font-size: 0.75rem;
       color: #a1a1aa;
-      height: 95px;
+      height: 110px;
       overflow-y: auto;
       white-space: pre-wrap;
     }
-
     video {
       width: 100%;
       max-height: 320px;
@@ -186,7 +183,6 @@
       display: none;
     }
     video.active { display: block; }
-
     footer {
       text-align: center;
       color: var(--muted);
@@ -198,14 +194,19 @@
 <body>
   <div class="container">
     <header>
-      <div class="badge">100% Browser-Based • Private & Free</div>
+      <div class="badge">100% Browser-Based • Private &amp; Free</div>
       <h1>YouTube Video Optimizer</h1>
-      <p>Convert and export videos using YouTube's highest-quality upload specs (MP4, H.264 High, FastStart, 48kHz AAC) or upscale to trigger YouTube's sharper VP9 codec.</p>
+      <p>Export videos using YouTube's highest-quality upload specs (MP4, H.264 High, FastStart, 48kHz AAC) or upscale to trigger YouTube's sharper VP9 codec.</p>
     </header>
+
+    <div class="warning-banner" id="fileProtocolWarn">
+      <strong>⚠️ Important:</strong> You opened this page directly from your computer (<code>file://</code>). Browsers block video workers on <code>file://</code>.<br />
+      Please upload this file to <strong>Netlify Drop</strong> or <strong>Cloudflare Pages</strong> (so it opens with <code>https://</code>), or run a local server (<code>python -m http.server</code>).
+    </div>
 
     <div class="card">
       <div class="dropzone" id="dropzone">
-        <input type="file" id="fileInput" accept="video/*" />
+        <input type="file" id="fileInput" accept="video/*,.mkv,.mov,.mp4,.webm,.avi" />
         <strong>Click to upload or drag &amp; drop a video</strong>
         <span>Supports MP4, MOV, MKV, WEBM, AVI (Best for files under 500 MB)</span>
       </div>
@@ -224,7 +225,7 @@
         <option value="remux">Lossless Remux to MP4 (Zero Re-encoding • Instant for H.264/OBS files)</option>
       </select>
       <p class="hint" id="presetHint">
-        Uses YouTube's recommended MP4 container, H.264 High Profile, yuv420p color, and moves metadata to the front (+faststart) for clean server processing.
+        Uses YouTube's recommended MP4 container, H.264 High Profile, yuv420p color, 384kbps AAC audio, and +faststart.
       </p>
 
       <label for="speed">Encoding Speed vs File Size</label>
@@ -237,7 +238,7 @@
 
       <div class="progress-wrap" id="progressWrap">
         <div class="progress-header">
-          <span id="statusText">Loading FFmpeg engine (~31 MB first time)...</span>
+          <span id="statusText">Ready</span>
           <span id="percentText">0%</span>
         </div>
         <div class="progress-bar">
@@ -255,10 +256,10 @@
     </footer>
   </div>
 
-  <!-- Load FFmpeg.wasm UMD -->
-  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/umd/ffmpeg.js"></script>
   <script>
-    const { FFmpeg } = window.FFmpegWASM;
+    if (window.location.protocol === "file:") {
+      document.getElementById("fileProtocolWarn").classList.add("active");
+    }
 
     const dropzone = document.getElementById("dropzone");
     const fileInput = document.getElementById("fileInput");
@@ -299,9 +300,15 @@
       return (bytes / (1024 * 1024)).toFixed(2) + " MB";
     };
 
+    const isVideoFile = (file) => {
+      if (!file) return false;
+      if (file.type && file.type.startsWith("video/")) return true;
+      return /\.(mp4|mov|mkv|webm|avi|m4v|flv|wmv|ts|3gp)$/i.test(file.name);
+    };
+
     const handleFile = (file) => {
-      if (!file || !file.type.startsWith("video/")) {
-        alert("Please select a valid video file.");
+      if (!isVideoFile(file)) {
+        alert("Please select a valid video file (MP4, MOV, MKV, WEBM, AVI).");
         return;
       }
       selectedFile = file;
@@ -326,39 +333,79 @@
       handleFile(e.dataTransfer.files[0]);
     });
 
-    // Helper functions to load CDN files as same-origin Blob URLs
-    const toBlobURL = async (url, mimeType) => {
-      const resp = await fetch(url);
-      if (!resp.ok) throw new Error(`Failed to fetch ${url}`);
-      const buf = await resp.arrayBuffer();
-      return URL.createObjectURL(new Blob([buf], { type: mimeType }));
-    };
-
     const appendLog = (msg) => {
       logBox.textContent += msg + "\n";
       logBox.scrollTop = logBox.scrollHeight;
     };
 
+    const fetchWithFallback = async (urls) => {
+      let lastErr;
+      for (const url of urls) {
+        try {
+          const resp = await fetch(url);
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          return resp;
+        } catch (err) {
+          lastErr = err;
+          appendLog(`CDN retry (${url}): ${err.message}`);
+        }
+      }
+      throw lastErr || new Error("Failed to download engine files.");
+    };
+
+    const toBlobURL = async (urls, mimeType) => {
+      const resp = await fetchWithFallback(urls);
+      const buf = await resp.arrayBuffer();
+      return URL.createObjectURL(new Blob([buf], { type: mimeType }));
+    };
+
     const loadFFmpeg = async () => {
       if (ffmpeg) return ffmpeg;
-      ffmpeg = new FFmpeg();
 
+      // Load and patch UMD ffmpeg.js so classWorkerURL spawns a classic worker (fixes importScripts bug)
+      if (!window.FFmpegWASM) {
+        const resp = await fetchWithFallback([
+          "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/umd/ffmpeg.js",
+          "https://unpkg.com/@ffmpeg/ffmpeg@0.12.15/dist/umd/ffmpeg.js"
+        ]);
+        const js = await resp.text();
+        const patched = js.replace(/\{\s*type\s*:\s*["']module["']\s*\}/g, "{}");
+        const scriptUrl = URL.createObjectURL(new Blob([patched], { type: "text/javascript" }));
+        await new Promise((resolve, reject) => {
+          const s = document.createElement("script");
+          s.src = scriptUrl;
+          s.onload = resolve;
+          s.onerror = () => reject(new Error("Failed to initialize FFmpeg script."));
+          document.head.appendChild(s);
+        });
+      }
+
+      ffmpeg = new window.FFmpegWASM.FFmpeg();
       ffmpeg.on("log", ({ message }) => appendLog(message));
       ffmpeg.on("progress", ({ progress }) => {
-        const pct = Math.min(100, Math.max(0, Math.round(progress * 100)));
-        progressFill.style.width = pct + "%";
-        percentText.textContent = pct + "%";
+        if (typeof progress === "number" && !isNaN(progress)) {
+          const pct = Math.min(100, Math.max(0, Math.round(progress * 100)));
+          progressFill.style.width = pct + "%";
+          percentText.textContent = pct + "%";
+        }
       });
 
-      const ffmpegBase = "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/umd";
-      const coreBase = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd";
+      const classWorkerURL = await toBlobURL([
+        "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/umd/814.ffmpeg.js",
+        "https://unpkg.com/@ffmpeg/ffmpeg@0.12.15/dist/umd/814.ffmpeg.js"
+      ], "text/javascript");
 
-      await ffmpeg.load({
-        classWorkerURL: await toBlobURL(`${ffmpegBase}/814.ffmpeg.js`, "text/javascript"),
-        coreURL: await toBlobURL(`${coreBase}/ffmpeg-core.js`, "text/javascript"),
-        wasmURL: await toBlobURL(`${coreBase}/ffmpeg-core.wasm`, "application/wasm"),
-      });
+      const coreURL = await toBlobURL([
+        "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.js",
+        "https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.js"
+      ], "text/javascript");
 
+      const wasmURL = await toBlobURL([
+        "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.wasm",
+        "https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.wasm"
+      ], "application/wasm");
+
+      await ffmpeg.load({ classWorkerURL, coreURL, wasmURL });
       return ffmpeg;
     };
 
@@ -377,11 +424,11 @@
         statusText.textContent = "Loading FFmpeg engine (~31 MB first time)...";
         const ff = await loadFFmpeg();
 
-        const ext = selectedFile.name.split(".").pop() || "mp4";
+        const ext = (selectedFile.name.split(".").pop() || "mp4").toLowerCase();
         const inputName = `input.${ext}`;
         const outputName = "youtube_optimized.mp4";
 
-        statusText.textContent = "Reading video into memory...";
+        statusText.textContent = "Reading video into browser memory...";
         const fileData = new Uint8Array(await selectedFile.arrayBuffer());
         await ff.writeFile(inputName, fileData);
 
@@ -441,12 +488,12 @@
         progressFill.style.width = "100%";
         percentText.textContent = "100%";
 
-        // Cleanup virtual filesystem
         await ff.deleteFile(inputName);
         await ff.deleteFile(outputName);
       } catch (err) {
-        statusText.textContent = "Error: " + err.message;
-        appendLog("ERROR: " + err.message);
+        console.error(err);
+        statusText.textContent = "Error: " + (err?.message || err);
+        appendLog("ERROR: " + (err?.message || err));
       } finally {
         optimizeBtn.disabled = false;
       }
